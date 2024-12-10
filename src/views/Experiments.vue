@@ -28,6 +28,13 @@
         to="/experiments/contribution-assistant"
       />
     </v-col>
+    <v-col cols="12" sm="6" lg="4">
+      <v-card
+        :title="$t('Router.PersonalStats.Title')"
+        prepend-icon="mdi-draw"
+        to="/experiments/personal-stats"
+      />
+    </v-col>
   </v-row>
 </template>
 

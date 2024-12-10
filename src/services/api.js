@@ -190,6 +190,15 @@ export default {
     .then((response) => response.json())
   },
 
+  getPricesGroupedStats(params = {}) {
+    const url = `${import.meta.env.VITE_OPEN_PRICES_API_URL}/prices/grouped_stats?${buildURLParams({...params})}`
+    return fetch(url, {
+      method: 'GET',
+      headers: OP_DEFAULT_HEADERS,
+    })
+    .then((response) => response.json())
+  },
+
   updatePrice(priceId, inputData = {}) {
     const data = filterBodyWithAllowedKeys(inputData, PRICE_UPDATE_FIELDS)
     const store = useAppStore()
