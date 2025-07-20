@@ -247,33 +247,40 @@ export default {
       })
     },
     showEditProductDialog(item) {
-      this.editProductDialog = true
-      this.editProductItem = {
-        index: this.items.indexOf(item),
-        type: item.isCategory ? constants.PRICE_TYPE_CATEGORY : constants.PRICE_TYPE_PRODUCT,
-        category_tag: ![null, '', 'unknown', 'other'].includes(item.category_tag) ? item.category_tag : null,
-        origins_tags: [],
-        labels_tags: [],
-        price: item.price ? item.price.toString() : item.predicted_data.price.toString(),
-        price_per: item.price_per,
-        price_is_discounted: item.price_is_discounted,
-        price_without_discount: item.price_without_discount ? item.price_without_discount.toString() : null,
-        discount_type: item.discount_type,
-        currency: this.proof.currency,
-        receipt_quantity: item.receipt_quantity.toString(),
-        proof: this.proof,
-        proofImage: null,
-        croppedImage: null,
-        product_code: item.product_code,
-        detected_product_code: item.product_code,
-        product_name: item.product_name
-      }
+      api.getPrices({product_name: item.predicted_data.product_name, location_osm_name_like: this.proof.location.osm_name}).then(data => {
+        this.editProductDialog = true
+        if (!item.product_code && data.items.length) {
+          item.product_code = data.items[0].product_code
+        }
+        this.editProductItem = {
+          index: this.items.indexOf(item),
+          type: item.isCategory ? constants.PRICE_TYPE_CATEGORY : constants.PRICE_TYPE_PRODUCT,
+          category_tag: ![null, '', 'unknown', 'other'].includes(item.category_tag) ? item.category_tag : null,
+          origins_tags: [],
+          labels_tags: [],
+          price: item.price ? item.price.toString() : item.predicted_data.price.toString(),
+          price_per: item.price_per,
+          price_is_discounted: item.price_is_discounted,
+          price_without_discount: item.price_without_discount ? item.price_without_discount.toString() : null,
+          discount_type: item.discount_type,
+          currency: this.proof.currency,
+          receipt_quantity: item.receipt_quantity.toString(),
+          proof: this.proof,
+          proofImage: null,
+          croppedImage: null,
+          product_code: item.product_code,
+          detected_product_code: item.product_code,
+          product_name: item.product_name
+        }
+      })
     },
     confirmProduct(product) {
       this.editProductDialog = false
       this.items[this.editProductItem.index].productFound = product.product
       this.items[this.editProductItem.index].isCategory = product.type === constants.PRICE_TYPE_CATEGORY
       this.items[this.editProductItem.index].category_tag = product.type === constants.PRICE_TYPE_CATEGORY ? product.category_tag : null
+      this.items[this.editProductItem.index].predicted_data.product_name = this.editProductItem.product_name
+      this.items[this.editProductItem.index].predicted_data.price = this.editProductItem.price
       Object.assign(this.items[this.editProductItem.index], product)
       // this.editProductItem = null
     },
