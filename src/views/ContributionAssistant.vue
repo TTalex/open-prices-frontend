@@ -38,7 +38,7 @@
           <v-progress-circular v-if="!drawCanvasLoaded" indeterminate />
           <v-card>
             <v-card-text>
-              <ContributionAssistantDrawCanvas ref="ContributionAssistantDrawCanvas" :key="proofObject.id" :image="image" :boundingBoxesFromServer="boundingBoxesFromServer" @extractedLabels="onExtractedLabels($event)" @loaded="drawCanvasLoaded = true" />
+              <ContributionAssistantDrawCanvas ref="ContributionAssistantDrawCanvas" :key="proofObject.id" :imageSrc="imageSrc" :boundingBoxesFromServer="boundingBoxesFromServer" @extractedLabels="onExtractedLabels($event)" @loaded="drawCanvasLoaded = true" />
             </v-card-text>
             <v-divider />
             <v-card-actions>
@@ -257,7 +257,7 @@ export default {
       productPriceForms: [],
       // proof data
       proofObject: null,
-      image: new Image(),
+      imageSrc: null,
       proofWithBoundingBoxesLoading: false,
       processLabelsLoading: false,
       loading: false,
@@ -371,12 +371,7 @@ export default {
       this.proofObject = proof
 
       // proof image
-      const image = new Image()
-      // image.src = 'https://prices.openfoodfacts.org/img/0024/tM0NEloNU3.webp'  // barcodes
-      // image.src = 'https://prices.openfoodfacts.org/img/0023/f6tJvMcsDk.webp'  // categories
-      image.src = `${import.meta.env.VITE_OPEN_PRICES_APP_URL}/img/${proof.file_path}`
-      image.crossOrigin = 'Anonymous'
-      this.image = image
+      this.imageSrc = `${import.meta.env.VITE_OPEN_PRICES_APP_URL}/img/${proof.file_path}`
 
       this.step = 2
       if (proof.type === constants.PROOF_TYPE_RECEIPT) {

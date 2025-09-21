@@ -16,13 +16,17 @@
   import constants from '../constants'
   export default {
     props: {
-      image: {
-        type: Image,
+      imageSrc: {
+        type: String,
         default: null
       },
       boundingBoxesFromServer: {
         type: Array,
         default: null
+      },
+      preventDrawing: {
+        type: Boolean,
+        default: false
       }
     },
     emits: ['extractedLabels', 'loaded'],
@@ -32,7 +36,8 @@
         startX: 0,
         startY: 0,
         scale: 1,
-        boundingBoxes: []
+        boundingBoxes: [],
+        image: new Image()
       }
     },
     watch: {
@@ -40,9 +45,20 @@
         if (this.boundingBoxesFromServer.length) {
           this.initCanvas(false)
         }
+      },
+      imageSrc() {
+          this.image.src = this.imageSrc
+          this.image.crossOrigin = "anonymous"
+          if (this.image.complete) {
+            this.initCanvas()
+          } else {
+            this.image.onload = () => this.initCanvas()
+          }
       }
     },
     mounted() {
+      this.image.src = this.imageSrc
+      this.image.crossOrigin = "anonymous"
       if (this.image.complete) {
         this.initCanvas()
       } else {
@@ -51,19 +67,24 @@
     },
     methods: {
       initCanvas(keepBoundingBoxes=false) {
+        console.log("initCanvas")
         const canvas = this.$refs.canvas
+        if (!canvas) return
         const ctx = canvas.getContext("2d")
         canvas.style.width = "100%"
-        this.scale = canvas.offsetWidth / this.image.width
+        this.scale = 1 //canvas.offsetWidth / this.image.width
+        this.s = canvas.offsetWidth / this.image.width
         const preferedHeight = window.innerHeight - 250
 
         if (preferedHeight < this.image.height * this.scale) {
           // Image will be too tall
           // Ajust to fit preferedHeight
           canvas.style.width = "auto"
-          this.scale = preferedHeight / this.image.height
+          // this.scale = preferedHeight / this.image.height
+          this.s = preferedHeight / this.image.height
+          canvas.style.height = preferedHeight + "px"
         }
-        
+
         const newWidth = this.image.width * this.scale
         const newHeight = this.image.height * this.scale
         canvas.width = newWidth
@@ -75,13 +96,13 @@
           this.boundingBoxes = [] // reset boundingBoxes
         }
         if (this.boundingBoxesFromServer) {
-          this.boundingBoxes = this.boundingBoxes.concat(this.boundingBoxesFromServer.map(({boundingBox, id, status}) => {
+          this.boundingBoxes = this.boundingBoxes.concat(this.boundingBoxesFromServer.map(({boundingBox, id, status, created_by	}) => {
             return {
               startY: boundingBox[0] * this.image.height,
               startX: boundingBox[1] * this.image.width,
               endY: boundingBox[2] * this.image.height,
               endX: boundingBox[3] * this.image.width,
-              boundingSource: this.$t('ContributionAssistant.AutomaticBoundingBoxSource'),
+              boundingSource: created_by ? this.$t('ContributionAssistant.ManualBoundingBoxSource') : this.$t('ContributionAssistant.AutomaticBoundingBoxSource'),
               id: id,
               status: status
             }
@@ -92,17 +113,18 @@
         this.$emit('loaded')
       },
       startDrawing(event) {
-        if (this.isDrawing) return
+        if (this.isDrawing || this.preventDrawing) return
         if (event.type == "touchstart") {
           const rect = event.target.getBoundingClientRect()
           event.offsetX = event.targetTouches[0].clientX - rect.left 
           event.offsetY = event.targetTouches[0].clientY - rect.top 
         }
-        this.startX = event.offsetX / this.scale
-        this.startY = event.offsetY / this.scale
+        this.startX = event.offsetX / this.s
+        this.startY = event.offsetY / this.s
         this.isDrawing = true
       },
       drawContent(event) {
+        if (this.preventDrawing) return
         if (event.type == "touchmove") {
           const rect = event.target.getBoundingClientRect()
           event.offsetX = event.targetTouches[0].clientX - rect.left 
@@ -115,33 +137,37 @@
           ctx.drawImage(this.image, 0, 0, canvas.width, canvas.height); // Redraw image
           this.drawBoundingBoxes() // Redraw previous boundingBoxes
           
-          const currentX = event.offsetX / this.scale
-          const currentY = event.offsetY / this.scale
+          const currentX = event.offsetX / this.s
+          const currentY = event.offsetY / this.s
           const width = currentX - this.startX
           const height = currentY - this.startY
           
           ctx.strokeStyle = "red"
-          ctx.strokeRect(this.startX * this.scale, this.startY * this.scale, width * this.scale, height * this.scale)
+          ctx.strokeRect(this.startX, this.startY, width, height)
         }
       },
       finishDrawing(event) {
+        console.log("finishDrawing start")
+        if (this.preventDrawing) return
         this.isDrawing = false
         if (event.type == "touchend") {
           const rect = event.target.getBoundingClientRect()
           event.offsetX = event.changedTouches[0].clientX - rect.left 
           event.offsetY = event.changedTouches[0].clientY - rect.top 
         }
-        const endX = event.offsetX / this.scale
-        const endY = event.offsetY / this.scale
+        const endX = event.offsetX / this.s
+        const endY = event.offsetY / this.s
         // ignore bounding boxes that are too small
         if (Math.abs(endX - this.startX) > 10 && Math.abs(endY - this.startY) > 10) {
           this.boundingBoxes.push({ startX: this.startX, startY: this.startY, endX, endY, boundingSource: this.$t('ContributionAssistant.ManualBoundingBoxSource') })
         }
+        console.log("finishDrawing")
         this.extractLabels()
         this.drawBoundingBoxes()
       },
       drawBoundingBoxes() {
         const ctx = this.$refs.canvas.getContext("2d")
+        ctx.lineWidth = 1 / this.s
         this.boundingBoxes.forEach(rect => {
           const { startX, startY, endX, endY } = rect
           const width = endX - startX
@@ -159,14 +185,24 @@
               text = this.$t('ContributionAssistant.PriceTagLabels.PriceTagUnreadable')
               break
             case constants.PRICE_TAG_STATUS_TRUNCATED:
-              ctx.strokeStyle = "#883c1e"
+              ctx.strokeStyle = "#883c1e"  // dark brown
               ctx.fillStyle = "#883c1e"
               text = this.$t('ContributionAssistant.PriceTagLabels.PriceTagTruncated')
               break
             case constants.PRICE_TAG_STATUS_NOT_A_PRICE:
-              ctx.strokeStyle = "#88631e"
+              ctx.strokeStyle = "#88631e"  // light brown
               ctx.fillStyle = "#88631e"
               text = this.$t('ContributionAssistant.PriceTagLabels.PriceTagNotAPrice')
+              break
+            case constants.PRICE_TAG_STATUS_NO_BARCODE:
+              ctx.strokeStyle = "yellow"
+              ctx.fillStyle = "yellow"
+              text = this.$t('ContributionAssistant.PriceTagLabels.PriceTagNoBarcode')
+              break
+            case constants.PRICE_TAG_STATUS_OTHER:
+              ctx.strokeStyle = "gray"
+              ctx.fillStyle = "gray"
+              text = this.$t('ContributionAssistant.PriceTagLabels.PriceTagOther')
               break
             default:
               if (rect.id) {  // status == null
@@ -180,14 +216,16 @@
               }
           }
           ctx.strokeRect(startX * this.scale, startY * this.scale, width * this.scale, height * this.scale)
+          ctx.font = `bold ${8/this.s}px sans-serif `
           const textWidth = ctx.measureText(text).width + 4
-          ctx.strokeRect(Math.min(startX, endX) * this.scale, Math.min(startY, endY) * this.scale - 10, textWidth, 10)
-          ctx.fillRect(Math.min(startX, endX) * this.scale, Math.min(startY, endY) * this.scale - 10, textWidth, 10)
+          ctx.strokeRect(Math.min(startX, endX) * this.scale, Math.min(startY, endY) * this.scale - (8/this.s), textWidth, (8/this.s))
+          ctx.fillRect(Math.min(startX, endX) * this.scale, Math.min(startY, endY) * this.scale - (8/this.s), textWidth, (8/this.s))
           ctx.fillStyle = "white"
-          ctx.fillText(text, Math.min(startX, endX) * this.scale + 2, Math.min(startY, endY) * this.scale - 2)
+          ctx.fillText(text, Math.min(startX, endX) * this.scale + 3, Math.min(startY, endY) * this.scale - 3)
         });
       },
       async extractLabels() {
+        console.log("extractLabels start")
         let extractedLabels = []
         const originalCanvas = document.createElement("canvas")
         const ctx = originalCanvas.getContext("2d")
@@ -215,6 +253,7 @@
             id: rect.id || null
           }
         }
+        console.log("extractedLabels", extractedLabels)
         this.$emit('extractedLabels', extractedLabels)
       },
       removeBoundingBox(index) {

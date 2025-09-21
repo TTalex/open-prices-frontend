@@ -2,7 +2,7 @@
   <PriceCountChip class="mr-1" :count="product.price_count" @click="goToProduct()" />
   <span v-if="hasProductSource">
     <ProductBrands :productBrands="product.brands" :readonly="readonly" />
-    <ProductQuantityChip class="mr-1" :productQuantity="product.product_quantity" :productQuantityUnit="product.product_quantity_unit" @click="showQuantityDialog = true" />
+    <ProductQuantityChip class="mr-1" :productQuantity="product.product_quantity" :productQuantityUnit="product.product_quantity_unit" />
     <br v-if="!hideCategoriesAndLabels">
     <ProductCategoriesChip v-if="!hideCategoriesAndLabels" class="mr-1" :productCategories="product.categories_tags" />
     <ProductLabelsChip v-if="!hideCategoriesAndLabels" :productLabels="product.labels_tags" />
@@ -13,39 +13,6 @@
   <ProductBarcodeTooLongChip v-if="!hideBarcodeErrors && barcodeTooLong" :barcode="product.code" class="mr-1" />
   <ProductBarcodeInvalidChip v-if="!hideBarcodeErrors && barcodeInvalid" class="mr-1" />
   <ProductSourceChip v-if="showProductSource" :product="product" />
-  <v-dialog v-model="showQuantityDialog" scrollable>
-    <v-card :title="$t('PriceEdit.Title')">
-      <template #append>
-        <v-icon icon="mdi-close" @click="showQuantityDialog = false" />
-      </template>
-
-      <v-divider />
-
-      <v-card-text>
-        <v-text-field
-          v-model="product.quantity"
-          density="compact"
-          variant="outlined"
-          type="text"
-        />
-      </v-card-text>
-
-      <v-divider />
-
-      <v-card-actions>
-        <v-spacer v-if="$vuetify.display.smAndUp" />
-        <v-btn
-          color="primary"
-          variant="flat"
-          :block="!$vuetify.display.smAndUp"
-          :loading="loading"
-          @click="updateQuantity"
-        >
-          {{ $t('PriceEdit.Save') }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
 </template>
 
 <script>
@@ -53,7 +20,6 @@ import { defineAsyncComponent } from 'vue'
 import { mapStores } from 'pinia'
 import { useAppStore } from '../store'
 import utils from '../utils.js'
-import api from '../services/api'
 
 export default {
   components: {
@@ -90,12 +56,6 @@ export default {
       default: false
     },
   },
-  data() {
-    return {
-      showQuantityDialog: false,
-      loading: false
-    }
-  },
   computed: {
     ...mapStores(useAppStore),
     hasProductSource() {
@@ -126,20 +86,6 @@ export default {
         return
       }
       this.$router.push({ path: `/products/${this.product.code}` })
-    },
-    updateQuantity() {
-      // update product quantity
-      api
-        .updateOffProduct(this.product.code, {
-          quantity: this.product.quantity,
-        })
-        .then(() => {
-          this.showQuantityDialog = false
-        })
-        .catch((error) => {
-          console.log(error)
-          this.showQuantityDialog = false
-        })
     },
   },
 }
