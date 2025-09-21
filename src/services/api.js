@@ -410,6 +410,16 @@ export default {
     .then((response) => response.json())
   },
 
+  updateOffProductImage(productCode, imageSrc) {
+    const url = `${import.meta.env.VITE_OPEN_PRICES_API_URL}/products/off_update_image/${productCode}?${buildURLParams()}`
+    return fetch(url, {
+      method: 'PATCH',
+      headers: OP_DEFAULT_HEADERS,
+      body: JSON.stringify({image_src: imageSrc}),
+    })
+    .then((response) => response.json())
+  },
+
   createLocationOnline(inputData) {
     const data = filterBodyWithAllowedKeys(inputData, LOCATION_ONLINE_CREATE_FIELDS)
     const store = useAppStore()
